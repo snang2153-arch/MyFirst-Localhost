@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Employee & Student Dashboard</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --panel: #161f36;
+    --panel2: #1c2742;
+    --accent: #38bdf8;
+    --accent2: #a78bfa;
+    --text: #e2e8f0;
+    --muted: #8b98b3;
+    --danger: #f87171;
+    --success: #34d399;
+    --border: #2a3655;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px 24px 60px;
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 4px;
+    font-size: 26px;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  .conn-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+  /* Toasts */
+  #toast-container {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 999;
+  }
+  .toast {
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    animation: slideIn 0.25s ease-out;
+    max-width: 320px;
+  }
+  .toast.error { background: #3f1d1d; color: var(--danger); border: 1px solid #7f2d2d; }
+  .toast.ok { background: #0e3630; color: var(--success); border: 1px solid #1f5c50; }
+  @keyframes slideIn {
+    from { transform: translateX(30px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* Stat cards */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto 28px auto;
+  }
+  @media (max-width: 700px) {
+    .stats { grid-template-columns: 1fr 1fr; }
+  }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .stat-card .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .stat-card .value { font-size: 22px; font-weight: 700; }
+  .stat-card.accent .value { color: var(--accent); }
+  .stat-card.accent2 .value { color: var(--accent2); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  @media (max-width: 850px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  }
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .panel-header h2 { margin: 0; font-size: 18px; }
+  .panel-header .count { font-size: 12px; color: var(--muted); font-weight: normal; margin-left: 6px; }
+  .refresh-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .refresh-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  form input {
+    padding: 9px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #0f1830;
+    color: var(--text);
+    font-size: 13px;
+  }
+  form input:focus { outline: none; border-color: var(--accent); }
+  form button {
+    grid-column: span 2;
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent);
+    color: #0b1120;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  form.students button { background: var(--accent2); }
+  form button:hover { opacity: 0.88; }
+  form button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .search-box {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #0f1830;
+    color: var(--text);
+    font-size: 13px;
+  }
+  .search-box:focus { outline: none; border-color: var(--accent); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--muted); font-weight: 500; }
+  .row-actions { display: flex; gap: 10px; }
+  .icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0;
+  }
+  .icon-btn.edit { color: var(--accent); }
+  .icon-btn.del { color: var(--danger); }
+  .icon-btn:hover { text-decoration: underline; }
+
+  .empty-row td, .loading-row td {
+    color: var(--muted);
+    text-align: center;
+    padding: 20px;
+  }
+
+  tr.editing input {
+    width: 100%;
+    padding: 4px 6px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    background: #0f1830;
+    color: var(--text);
+  }
+  .save-cancel { display: flex; gap: 8px; }
+  .save-cancel button { font-size: 12px; padding: 3px 8px; border-radius: 4px; border: none; cursor: pointer; }
+  .save-cancel .save { background: var(--success); color: #06231d; }
+  .save-cancel .cancel { background: var(--border); color: var(--text); }
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<h1>Employee &amp; Student Dashboard</h1>
+<div class="subtitle">Talking to the API Gateway at <code id="base-url"></code></div>
+<div class="conn-row">
+  <span class="dot" id="conn-dot"></span>
+  <span id="conn-text">Checking connection...</span>
+</div>
+
+<div class="stats">
+  <div class="stat-card accent">
+    <div class="label">Total Employees</div>
+    <div class="value" id="stat-emp-total">–</div>
+  </div>
+  <div class="stat-card accent">
+    <div class="label">Avg. Salary</div>
+    <div class="value" id="stat-emp-salary">–</div>
+  </div>
+  <div class="stat-card accent2">
+    <div class="label">Total Students</div>
+    <div class="value" id="stat-stu-total">–</div>
+  </div>
+  <div class="stat-card accent2">
+    <div class="label">Avg. Age</div>
+    <div class="value" id="stat-stu-age">–</div>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- EMPLOYEES -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Employees <span class="count" id="emp-count"></span></h2>
+      <button class="refresh-btn" id="emp-refresh">Refresh</button>
+    </div>
+    <form id="emp-form">
+      <input type="text" id="emp-name" placeholder="Name" required>
+      <input type="email" id="emp-email" placeholder="Email" required>
+      <input type="text" id="emp-department" placeholder="Department">
+      <input type="number" id="emp-salary" placeholder="Salary" step="0.01">
+      <button type="submit" id="emp-submit">Add Employee</button>
+    </form>
+    <input type="text" class="search-box" id="emp-search" placeholder="Search employees by name, email, or department...">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Dept</th><th>Salary</th><th></th></tr>
+      </thead>
+      <tbody id="emp-table-body">
+        <tr class="loading-row"><td colspan="5">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- STUDENTS -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Students <span class="count" id="stu-count"></span></h2>
+      <button class="refresh-btn" id="stu-refresh">Refresh</button>
+    </div>
+    <form id="stu-form" class="students">
+      <input type="text" id="stu-name" placeholder="Name" required>
+      <input type="email" id="stu-email" placeholder="Email" required>
+      <input type="text" id="stu-course" placeholder="Course">
+      <input type="number" id="stu-age" placeholder="Age">
+      <button type="submit" id="stu-submit">Add Student</button>
+    </form>
+    <input type="text" class="search-box" id="stu-search" placeholder="Search students by name, email, or course...">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Course</th><th>Age</th><th></th></tr>
+      </thead>
+      <tbody id="stu-table-body">
+        <tr class="loading-row"><td colspan="5">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  const BASE_URL = "http://localhost:8080";
+  document.getElementById("base-url").textContent = BASE_URL;
+
+  let employees = [];
+  let students = [];
+  let editingEmpId = null;
+  let editingStuId = null;
+
+  function showToast(message, isError) {
+    const container = document.getElementById("toast-container");
+    const el = document.createElement("div");
+    el.className = "toast " + (isError ? "error" : "ok");
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  function setConnection(online) {
+    const dot = document.getElementById("conn-dot");
+    const text = document.getElementById("conn-text");
+    dot.className = "dot " + (online ? "online" : "offline");
+    text.textContent = online ? "Connected to gateway" : "Cannot reach gateway";
+  }
+
+  async function apiRequest(path, options = {}) {
+    const res = await fetch(BASE_URL + path, {
+      headers: { "Content-Type": "application/json" },
+      ...options
+    });
+    if (!res.ok && res.status !== 204) throw new Error("Request failed: " + res.status);
+    setConnection(true);
+    if (res.status === 204) return null;
+    return await res.json();
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  function updateStats() {
+    document.getElementById("stat-emp-total").textContent = employees.length;
+    document.getElementById("stat-stu-total").textContent = students.length;
+    const avgSalary = employees.length
+      ? (employees.reduce((s, e) => s + (Number(e.salary) || 0), 0) / employees.length)
+      : 0;
+    document.getElementById("stat-emp-salary").textContent =
+      employees.length ? "$" + avgSalary.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "–";
+    const avgAge = students.length
+      ? (students.reduce((s, st) => s + (Number(st.age) || 0), 0) / students.length)
+      : 0;
+    document.getElementById("stat-stu-age").textContent = students.length ? avgAge.toFixed(1) : "–";
+  }
+
+  // ---------- EMPLOYEES ----------
+  async function loadEmployees() {
+    try {
+      employees = await apiRequest("/api/employees");
+    } catch (err) {
+      setConnection(false);
+      showToast("Could not load employees. Is api-gateway / employee-service running?", true);
+      employees = [];
+    }
+    renderEmployees();
+    updateStats();
+  }
+
+  function renderEmployees() {
+    const query = document.getElementById("emp-search").value.toLowerCase();
+    const filtered = employees.filter(e =>
+      (e.name || "").toLowerCase().includes(query) ||
+      (e.email || "").toLowerCase().includes(query) ||
+      (e.department || "").toLowerCase().includes(query)
+    );
+    document.getElementById("emp-count").textContent = employees.length ? `(${employees.length})` : "";
+    const body = document.getElementById("emp-table-body");
+    body.innerHTML = "";
+
+    if (!filtered.length) {
+      body.innerHTML = `<tr class="empty-row"><td colspan="5">${employees.length ? "No matches" : "No employees yet"}</td></tr>`;
+      return;
+    }
+
+    filtered.forEach(emp => {
+      const tr = document.createElement("tr");
+      if (emp.id === editingEmpId) {
+        tr.className = "editing";
+        tr.innerHTML = `
+          <td><input type="text" value="${escapeHtml(emp.name)}" data-field="name"></td>
+          <td><input type="email" value="${escapeHtml(emp.email)}" data-field="email"></td>
+          <td><input type="text" value="${escapeHtml(emp.department)}" data-field="department"></td>
+          <td><input type="number" value="${emp.salary ?? ''}" data-field="salary"></td>
+          <td>
+            <div class="save-cancel">
+              <button class="save">Save</button>
+              <button class="cancel">Cancel</button>
+            </div>
+          </td>
+        `;
+        tr.querySelector(".save").addEventListener("click", async () => {
+          const inputs = tr.querySelectorAll("input");
+          const payload = {};
+          inputs.forEach(i => payload[i.dataset.field] = i.dataset.field === "salary" ? parseFloat(i.value) || null : i.value);
+          try {
+            await apiRequest(`/api/employees/${emp.id}`, { method: "PUT", body: JSON.stringify(payload) });
+            showToast("Employee updated.", false);
+            editingEmpId = null;
+            loadEmployees();
+          } catch { showToast("Update failed.", true); }
+        });
+        tr.querySelector(".cancel").addEventListener("click", () => {
+          editingEmpId = null;
+          renderEmployees();
+        });
+      } else {
+        tr.innerHTML = `
+          <td>${escapeHtml(emp.name)}</td>
+          <td>${escapeHtml(emp.email)}</td>
+          <td>${escapeHtml(emp.department)}</td>
+          <td>${emp.salary != null ? "$" + Number(emp.salary).toLocaleString() : ""}</td>
+          <td>
+            <div class="row-actions">
+              <button class="icon-btn edit">Edit</button>
+              <button class="icon-btn del">Delete</button>
+            </div>
+          </td>
+        `;
+        tr.querySelector(".edit").addEventListener("click", () => {
+          editingEmpId = emp.id;
+          renderEmployees();
+        });
+        tr.querySelector(".del").addEventListener("click", async () => {
+          try {
+            await apiRequest(`/api/employees/${emp.id}`, { method: "DELETE" });
+            showToast("Employee deleted.", false);
+            loadEmployees();
+          } catch { showToast("Delete failed.", true); }
+        });
+      }
+      body.appendChild(tr);
+    });
+  }
+
+  document.getElementById("emp-search").addEventListener("input", renderEmployees);
+  document.getElementById("emp-refresh").addEventListener("click", loadEmployees);
+
+  document.getElementById("emp-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("emp-submit");
+    btn.disabled = true;
+    const payload = {
+      name: document.getElementById("emp-name").value,
+      email: document.getElementById("emp-email").value,
+      department: document.getElementById("emp-department").value,
+      salary: parseFloat(document.getElementById("emp-salary").value) || null
+    };
+    try {
+      await apiRequest("/api/employees", { method: "POST", body: JSON.stringify(payload) });
+      e.target.reset();
+      showToast("Employee added.", false);
+      loadEmployees();
+    } catch {
+      showToast("Could not add employee.", true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------- STUDENTS ----------
+  async function loadStudents() {
+    try {
+      students = await apiRequest("/api/students");
+    } catch (err) {
+      setConnection(false);
+      showToast("Could not load students. Is api-gateway / student-service running?", true);
+      students = [];
+    }
+    renderStudents();
+    updateStats();
+  }
+
+  function renderStudents() {
+    const query = document.getElementById("stu-search").value.toLowerCase();
+    const filtered = students.filter(s =>
+      (s.name || "").toLowerCase().includes(query) ||
+      (s.email || "").toLowerCase().includes(query) ||
+      (s.course || "").toLowerCase().includes(query)
+    );
+    document.getElementById("stu-count").textContent = students.length ? `(${students.length})` : "";
+    const body = document.getElementById("stu-table-body");
+    body.innerHTML = "";
+
+    if (!filtered.length) {
+      body.innerHTML = `<tr class="empty-row"><td colspan="5">${students.length ? "No matches" : "No students yet"}</td></tr>`;
+      return;
+    }
+
+    filtered.forEach(stu => {
+      const tr = document.createElement("tr");
+      if (stu.id === editingStuId) {
+        tr.className = "editing";
+        tr.innerHTML = `
+          <td><input type="text" value="${escapeHtml(stu.name)}" data-field="name"></td>
+          <td><input type="email" value="${escapeHtml(stu.email)}" data-field="email"></td>
+          <td><input type="text" value="${escapeHtml(stu.course)}" data-field="course"></td>
+          <td><input type="number" value="${stu.age ?? ''}" data-field="age"></td>
+          <td>
+            <div class="save-cancel">
+              <button class="save">Save</button>
+              <button class="cancel">Cancel</button>
+            </div>
+          </td>
+        `;
+        tr.querySelector(".save").addEventListener("click", async () => {
+          const inputs = tr.querySelectorAll("input");
+          const payload = {};
+          inputs.forEach(i => payload[i.dataset.field] = i.dataset.field === "age" ? parseInt(i.value) || null : i.value);
+          try {
+            await apiRequest(`/api/students/${stu.id}`, { method: "PUT", body: JSON.stringify(payload) });
+            showToast("Student updated.", false);
+            editingStuId = null;
+            loadStudents();
+          } catch { showToast("Update failed.", true); }
+        });
+        tr.querySelector(".cancel").addEventListener("click", () => {
+          editingStuId = null;
+          renderStudents();
+        });
+      } else {
+        tr.innerHTML = `
+          <td>${escapeHtml(stu.name)}</td>
+          <td>${escapeHtml(stu.email)}</td>
+          <td>${escapeHtml(stu.course)}</td>
+          <td>${stu.age ?? ""}</td>
+          <td>
+            <div class="row-actions">
+              <button class="icon-btn edit">Edit</button>
+              <button class="icon-btn del">Delete</button>
+            </div>
+          </td>
+        `;
+        tr.querySelector(".edit").addEventListener("click", () => {
+          editingStuId = stu.id;
+          renderStudents();
+        });
+        tr.querySelector(".del").addEventListener("click", async () => {
+          try {
+            await apiRequest(`/api/students/${stu.id}`, { method: "DELETE" });
+            showToast("Student deleted.", false);
+            loadStudents();
+          } catch { showToast("Delete failed.", true); }
+        });
+      }
+      body.appendChild(tr);
+    });
+  }
+
+  document.getElementById("stu-search").addEventListener("input", renderStudents);
+  document.getElementById("stu-refresh").addEventListener("click", loadStudents);
+
+  document.getElementById("stu-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("stu-submit");
+    btn.disabled = true;
+    const payload = {
+      name: document.getElementById("stu-name").value,
+      email: document.getElementById("stu-email").value,
+      course: document.getElementById("stu-course").value,
+      age: parseInt(document.getElementById("stu-age").value) || null
+    };
+    try {
+      await apiRequest("/api/students", { method: "POST", body: JSON.stringify(payload) });
+      e.target.reset();
+      showToast("Student added.", false);
+      loadStudents();
+    } catch {
+      showToast("Could not add student.", true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // initial load
+  loadEmployees();
+  loadStudents();
+</script>
+
+</body>
+</html>
